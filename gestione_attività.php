@@ -20,24 +20,32 @@ $tempi_massimi = [
     'mattina_linea1' => 360,
     'mattina_linea2' => 360,
     'pomeriggio_linea1' => 300,
-    'pomeriggio_linea2' => 300
+    'pomeriggio_linea2' => 300,
+    'ausiliario_linea1' => 660,
+    'ausiliario_linea2' => 660,
+
+    
 ];
 
 $tempo_massimo = $tempi_massimi[$fascia_oraria];
 
-// Verifica se la prenotazione esiste e appartiene all'agenzia corrente
-$query = $conn->prepare("SELECT id FROM prenotazioni WHERE agenzia_id = ? AND data = ? AND fascia_oraria = ?");
-$query->bind_param('iss', $agenzia_id, $data, $fascia_oraria);
+// Verifica se la prenotazione esiste e appartiene all'agenzia corrente o se è una fascia ausiliaria
+$query = $conn->prepare("SELECT id, agenzia_id FROM prenotazioni WHERE data = ? AND fascia_oraria = ?");
+$query->bind_param('ss', $data, $fascia_oraria);
 $query->execute();
 $result = $query->get_result();
 
 if ($result->num_rows === 0) {
-    die("Prenotazione non trovata o non autorizzata");
+    die("Prenotazione non trovata");
 }
 
-$prenotazione_id = $result->fetch_assoc()['id'];
+$prenotazione = $result->fetch_assoc();
+$prenotazione_id = $prenotazione['id'];
 
-$message = '';
+// Controlla se è una fascia ausiliaria o se appartiene all'agenzia corrente
+if (strpos($fascia_oraria, 'ausiliario') === false && $prenotazione['agenzia_id'] != $agenzia_id) {
+    die("Non autorizzato ad accedere a questa prenotazione");
+}
 
 // Funzione per calcolare il tempo totale delle attività
 function calcolaTempotato($conn, $prenotazione_id) {
@@ -200,16 +208,7 @@ if (isset($_GET['ajax'])) {
     <div id="message-container"></div>
 
     <div id="tempo-rimanente">Tempo rimanente: <?php echo $tempo_rimanente; ?> minuti</div>
-
-    <form id="aggiungi-form">
-        <h2>Aggiungi Attività</h2>
-        <input type="text" name="targa" placeholder="Targa" required>
-        <input type="text" name="cliente" placeholder="Cliente" required>
-        <input type="text" name="cod_fattura" placeholder="Codice Fattura" required>
-        <input type="number" name="tempo_mail" placeholder="Tempo Mail (in minuti)" required>
-        <input type="submit" value="Aggiungi">
-    </form>
-
+    
     <h2>Attività Esistenti</h2>
     <div id="attivita-container">
         <!-- La tabella delle attività sarà inserita qui dinamicamente -->
@@ -284,5 +283,16 @@ if (isset($_GET['ajax'])) {
             });
         });
     </script>
+
+    <form id="aggiungi-form">
+        <h2>Aggiungi Attività</h2>
+        <input type="text" name="targa" placeholder="Targa" required>
+        <input type="text" name="cliente" placeholder="Cliente" required>
+        <input type="text" name="cod_fattura" placeholder="Codice Fattura" required>
+        <input type="number" name="tempo_mail" placeholder="Tempo Mail (in minuti)" required>
+        <input type="submit" value="Aggiungi">
+    </form>
+
+    
 </body>
 </html>
