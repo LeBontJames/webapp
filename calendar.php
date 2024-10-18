@@ -1,5 +1,6 @@
 <?php
 session_start();
+
 include 'db.php'; // Connessione al database
 
 if (!isset($_SESSION['agenzia_id'])) {
@@ -44,21 +45,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $data = $_POST['data'];
         $fascia_oraria = $_POST['fascia_oraria'];
 
-        // Verifica se la prenotazione appartiene all'agenzia loggata
-        $query = $conn->prepare("SELECT * FROM prenotazioni WHERE agenzia_id = ? AND data = ? AND fascia_oraria = ?");
-        $query->bind_param('iss', $agenzia_id, $data, $fascia_oraria);
-        $query->execute();
-        $result = $query->get_result();
-
-        if ($result->num_rows > 0) {
-            // Rimuovi la prenotazione
+        if (strpos($fascia_oraria, 'ausiliario') !== false) {
+            // Per le fasce ausiliarie, consenti la rimozione a tutte le agenzie
+            $query = $conn->prepare("DELETE FROM prenotazioni WHERE data = ? AND fascia_oraria = ?");
+            $query->bind_param('ss', $data, $fascia_oraria);
+        } else {
+            // Per le altre fasce, mantieni il controllo dell'agenzia
             $query = $conn->prepare("DELETE FROM prenotazioni WHERE agenzia_id = ? AND data = ? AND fascia_oraria = ?");
             $query->bind_param('iss', $agenzia_id, $data, $fascia_oraria);
-            $query->execute();
-            echo "<p style='color:green;'>Prenotazione rimossa con successo!</p>";
-        } else {
-            echo "<p style='color:red;'>Non puoi rimuovere questa prenotazione perché non ti appartiene!</p>";
         }
+        
+        $query->execute();
+        echo "<p style='color:green;'>Prenotazione rimossa con successo!</p>";
     }
 }
 
@@ -80,6 +78,7 @@ $firstDayOfMonth = date('Y-m-01', strtotime("$year-$month-01")); // Primo giorno
 $startDayOfWeek = date('N', strtotime($firstDayOfMonth)); // Calcola da quale giorno della settimana inizia il mese corrente (Lunedì = 1)
 $daysInMonth = date('t', strtotime($firstDayOfMonth)); // Numero di giorni nel mese corrente
 $totalWeeks = ceil(($daysInMonth + ($startDayOfWeek - 1)) / 7); // Calcolo delle settimane del mese corrente
+
 ?>
 
 <!DOCTYPE html>
@@ -90,163 +89,228 @@ $totalWeeks = ceil(($daysInMonth + ($startDayOfWeek - 1)) / 7); // Calcolo delle
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <style>
     body {
-        font-family: 'Roboto', sans-serif;
+        font-family: 'Oswald', serif;
+        font-weight: normal;
         background-color: #f4f4f4;
         margin: 0;
-        padding: 0; /* Assicurati che il padding sia a 0 */
+        padding: 0;
     }
-
     h2 {
+        font-family: 'Oswald', serif;
         text-align: center;
         color: #333;
-        margin: 0; /* Rimuovi margine per meno spazio */
+        margin: 0;
     }
-
     h3 {
+        font-family: 'Oswald', serif;
         text-align: center;
         color: #555;
-        margin: 0; /* Rimuovi margine per meno spazio */
+        margin-left: 0px;
     }
-
     table {
         width: 100%;
         border-collapse: collapse;
-        margin: 2px 0; /* Ulteriore riduzione per meno spazio */
+        margin: 2px 0;
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        background-color: #fff;
+        background-color: #e4e7e7;
+        
     }
-
     th, td {
         border: 2px solid #4CAF50;
         border-color:#8895a8;
-        padding: 5px; /* Ulteriore riduzione per meno spazio */
+        padding: 5px;
         text-align: center;
-        vertical-align: top; /* Allinea il contenuto delle celle in alto */
+        vertical-align: top;
     }
-
     th {
         background-color: #4CAF50;
         color: white;
     }
-
     h4 {
+        font-family: 'Oswald', serif;
         margin: 0;
-        font-size: 18px;
-        color: #333; /* Colore delle date */
+        font-size: 0.9em;
+        color: #333;
     }
     th {
-    background-color: <?php echo $colore_agenzia; ?>; /* Usa il colore dell'agenzia */
-    color: white; /* Colore del testo */
-}
-
+        background-color: <?php echo $colore_agenzia; ?>;
+        color: white;
+    }
     .griglia-2x2 {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
-        grid-gap: 5px; /* Spazio tra le sezioni */
+        grid-gap: 5px;
     }
-
+    
     .sezione {
-        padding: 6px; /* Ulteriore riduzione per meno spazio */
-        border-radius: 8px; /* Bordo arrotondato */
-        background-color: #e7f3fe; /* Colore di sfondo */
+        padding: 6px;
+        border-radius: 8px;
+        background-color: #e7f3fe;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        font-size: 14px; /* Dimensione del testo */
-        transition: background-color 0.3s; /* Transizione al passaggio del mouse */
+        font-size: 14px;
+        transition: background-color 0.3s;
     }
-
     .sezione:hover {
-        background-color: #d0e4f7; /* Colore al passaggio del mouse */
+        background-color: #d0e4f7;
     }
-
     .sezione.occupato {
         color: #fff;
-        background-color: #ff4c4c; /* Colore per le sezioni occupate */
+        background-color: #ff4c4c;
+        
     }
-
+    .sezione.occupato:hover {
+        transform: scale(1.03);
+        
+    }
+    .sezione.ausiliario {
+        background-color: #8A2BE2;
+        color: #fff;
+        grid-column: span 2;
+    }
+    .sezione.ausiliario:hover {
+        transform: scale(1.03);
+    } 
     .sezione form {
-        margin: 3px 0 0; /* Distanza tra il testo e il pulsante, ridotto */
+        margin: 3px 0 0;
     }
-
     .sezione button {
-        font-size: 12px; /* Dimensione del pulsante */
-        padding: 4px 8px; /* Ulteriore riduzione per meno spazio */
+        font-size: 12px;
+        padding: 4px 8px;
         border: none;
-        border-radius: 5px; /* Bordo arrotondato per i pulsanti */
-        background-color: #5C6165;
+        border-radius: 5px;
+        background-color: #707c80;
         color: white;
         cursor: pointer;
-        transition: background-color 0.3s; /* Transizione al passaggio del mouse */
+        transition: background-color 0.3s;
+    
     }
-
     .sezione button:hover {
-        background-color: #8B8C8D; /* Colore al passaggio del mouse sui pulsanti */
+        background-color: #8B8C8D;
     }
-
     .nav-mese, .occupazione {
         text-align: center; 
-        margin-bottom: 3px; /* Ulteriore riduzione per meno spazio */
+        margin-bottom: 3px;
     }
-
     .nav-mese form,
     .occupazione form {
-        display: inline; /* Permette ai form di apparire sulla stessa riga */
-        margin: 0 4px; /* Spazio tra i form, ridotto */
+        display: inline;
+        margin: 0 20px;
     }
-
     .occupazione {
         display: flex;
         justify-content: center;
         align-items: center;
-        margin: 3px 0; /* Ulteriore riduzione per meno spazio */
+        margin: 3px 0;
     }
-
     .occupazione input, .occupazione select {
-        margin: 0 4px; /* Ulteriore riduzione per meno spazio */
-        padding: 4px; /* Ulteriore riduzione per meno spazio */
-        border-radius: 5px; /* Bordo arrotondato */
-        border: 1px solid #ccc; /* Bordo della input */
+        margin: 0 4px;
+        padding: 4px;
+        border-radius: 5px;
+        border: 1px solid #ccc;
     }
-</style>
+    .legenda {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+   
+}
 
+    .legenda h4 {
+    margin-right: 15px;
+    margin-bottom: 0;
+    }
 
+    .legenda-item {
+    display: flex;
+    align-items: center;
+    margin-right: 15px;
+    margin-bottom: 5px;
+    }
 
+    .legenda-color {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        margin-right: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+
+    .legenda-label {
+        font-size: 0.9em;
+        color: #555;
+        font-family: 'Oswald', serif;
+        font-size: 20px;
+    }
+    #logout-button {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    }
+
+    .logout-link {
+    padding: 10px 20px;
+    background: linear-gradient(to right, #C33764, #1D2671);
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    font-weight: bold;
+    transition: background-color 0.3s;
+    }
+
+    .logout-link:hover {
+    background-color: #f44336;
+    }
+    
+    
+    
+}
+    </style>
 </head>
 <body>
     <h2>Calendario Agenzia: <?php echo $nome_agenzia; ?></h2>
     
-    <!-- Form per cambiare mese -->
+    
+   <div class="occupazione-container">
+       <div class="occupazione">
+            <h4>Occupa Sezione</h4>
+            <form method="POST" action="calendar.php">
+                <label for="data">Data:</label>
+                <input type="date" id="data" name="data" required>
+                <label for="fascia_oraria">Fascia Oraria:</label>
+                <select id="fascia_oraria" name="fascia_oraria" required>
+                    <option value="mattina_linea1">Mattina Linea 1</option>
+                    <option value="mattina_linea2">Mattina Linea 2</option>
+                    <option value="pomeriggio_linea1">Pomeriggio Linea 1</option>
+                    <option value="pomeriggio_linea2">Pomeriggio Linea 2</option>
+                    <option value="ausiliario_linea1">Ausiliario Linea 1</option>
+                    <option value="ausiliario_linea2">Ausiliario Linea 2</option>
+                </select>
+                <button type="submit" name="occupa">Occupa Sezione</button>
+            </form>
+        </div>
+        
+
+    
+        
+        <h3><?php echo date('F Y', strtotime("$year-$month-01")); ?></h3>
+        <!-- Form per cambiare mese -->
     <div class="nav-mese">
         <form method="POST" action="calendar.php">
             <input type="hidden" name="mese" value="<?php echo $month == 1 ? 12 : $month - 1; ?>">
             <input type="hidden" name="anno" value="<?php echo $month == 1 ? $year - 1 : $year; ?>">
-            <button type="submit">Mese Precedente</button>
+            <button type="submit"> << Mese Precedente</button>
         </form>
         <form method="POST" action="calendar.php">
             <input type="hidden" name="mese" value="<?php echo $month == 12 ? 1 : $month + 1; ?>">
             <input type="hidden" name="anno" value="<?php echo $month == 12 ? $year + 1 : $year; ?>">
-            <button type="submit">Mese Successivo</button>
+            <button type="submit">Mese Successivo >></button>
         </form>
     </div>
-   <div class="occupazione">
-        <h4>Occupa Sezione</h4>
-        <form method="POST" action="calendar.php">
-            <label for="data">Data:</label>
-            <input type="date" id="data" name="data" required>
-            <label for="fascia_oraria">Fascia Oraria:</label>
-            <select id="fascia_oraria" name="fascia_oraria" required>
-                <option value="mattina_linea1">Mattina Linea 1</option>
-                <option value="mattina_linea2">Mattina Linea 2</option>
-                <option value="pomeriggio_linea1">Pomeriggio Linea 1</option>
-                <option value="pomeriggio_linea2">Pomeriggio Linea 2</option>
-            </select>
-            <button type="submit" name="occupa">Occupa Sezione</button>
-        </form>
-    </div>
-    <h3><?php echo date('F Y', strtotime("$year-$month-01")); ?></h3>
-    
     <table>
         <thead>
             <tr>
@@ -262,7 +326,6 @@ $totalWeeks = ceil(($daysInMonth + ($startDayOfWeek - 1)) / 7); // Calcolo delle
         <tbody>
             <?php
             $day = 1 - ($startDayOfWeek - 1); // Inizia dal primo giorno visibile nel calendario
-
             for ($week = 0; $week < $totalWeeks; $week++): ?>
                 <tr>
                     <?php for ($weekday = 1; $weekday <= 7; $weekday++): ?>
@@ -272,36 +335,114 @@ $totalWeeks = ceil(($daysInMonth + ($startDayOfWeek - 1)) / 7); // Calcolo delle
                             ?>
                                 <h4><?php echo $day; ?></h4>
                                 <div class="griglia-2x2">
-                                    <?php foreach (['mattina_linea1', 'mattina_linea2', 'pomeriggio_linea1', 'pomeriggio_linea2'] as $fascia): 
-                                        $prenotata = false;
-                                        foreach ($prenotazioni as $prenotazione) {
-                                            if ($prenotazione['data'] == $currentDate && $prenotazione['fascia_oraria'] == $fascia) {
-                                                $colore = $prenotazione['colore'];
-                                                $prenotata = true;
-                                                if ($prenotazione['agenzia_id'] == $agenzia_id) {
-                                                    echo "<div class='sezione occupato' style='background-color: $colore;'>
-                                                            $fascia
-                                                            <form method='POST' style='display:inline;'>
-                                                                <input type='hidden' name='data' value='$currentDate'>
-                                                                <input type='hidden' name='fascia_oraria' value='$fascia'>
-                                                                <button type='submit' name='rimuovi'>Rimuovi</button>
-                                                            </form>
-                                                                <form method='GET' action='gestione_attività.php' style='display:inline;'>
-                                                                <input type='hidden' name='data' value='$currentDate'>
-                                                                <input type='hidden' name='fascia_oraria' value='$fascia'>
-                                                                <button type='submit'>Gestisci attività</button>
-                                                            </form>
-                                                          </div>";
-                                                } else {
-                                                    echo "<div class='sezione occupato' style='background-color: $colore;'>$fascia (Occupato)</div>";
-                                                }
-                                                break;
+                                    <?php
+                                    $fasce = ['mattina_linea1', 'mattina_linea2', 'pomeriggio_linea1', 'pomeriggio_linea2'];
+                                    $ausiliario1 = false;
+                                    $ausiliario2 = false;
+                                    foreach ($prenotazioni as $prenotazione) {
+                                        if ($prenotazione['data'] == $currentDate) {
+                                            if ($prenotazione['fascia_oraria'] == 'ausiliario_linea1') {
+                                                $ausiliario1 = true;
+                                            } elseif ($prenotazione['fascia_oraria'] == 'ausiliario_linea2') {
+                                                $ausiliario2 = true;
                                             }
                                         }
-                                        if (!$prenotata) {
-                                            echo "<div class='sezione'>$fascia (Libero)</div>";
+                                    }
+                                    
+                                    if ($ausiliario1) {
+                                        echo "<div class='sezione ausiliario' style='background-color: #8A2BE2;'>
+                                                Ausiliario Linea 1
+                                                <form method='POST' style='display:inline;'>
+                                                    <input type='hidden' name='data' value='$currentDate'>
+                                                    <input type='hidden' name='fascia_oraria' value='ausiliario_linea1'>
+                                                    <button type='submit' name='rimuovi'>Rimuovi</button>
+                                                </form>
+                                                <form method='GET' action='gestione_attività.php' style='display:inline;'>
+                                                    <input type='hidden' name='data' value='$currentDate'>
+                                                    <input type='hidden' name='fascia_oraria' value='ausiliario_linea1'>
+                                                    <button type='submit'>Gestisci attività</button>
+                                                </form>
+                                              </div>";
+                                    } else {
+                                        foreach (['mattina_linea1', 'pomeriggio_linea1'] as $fascia) {
+                                            $prenotata = false;
+                                            foreach ($prenotazioni as $prenotazione) {
+                                                if ($prenotazione['data'] == $currentDate && $prenotazione['fascia_oraria'] == $fascia) {
+                                                    $colore = $prenotazione['colore'];
+                                                    $prenotata = true;
+                                                    if ($prenotazione['agenzia_id'] == $agenzia_id) {
+                                                        echo "<div class='sezione occupato' style='background-color: $colore;'>
+                                                                $fascia
+                                                                <form method='POST' style='display:inline;'>
+                                                                    <input type='hidden' name='data' value='$currentDate'>
+                                                                    <input type='hidden' name='fascia_oraria' value='$fascia'>
+                                                                    <button type='submit' name='rimuovi'>Rimuovi</button>
+                                                                </form>
+                                                                <form method='GET' action='gestione_attività.php' style='display:inline;'>
+                                                                    <input type='hidden' name='data' value='$currentDate'>
+                                                                    <input type='hidden' name='fascia_oraria' value='$fascia'>
+                                                                    <button type='submit'>Gestisci attività</button>
+                                                                </form>
+                                                              </div>";
+                                                    } else {
+                                                        echo "<div class='sezione occupato' style='background-color: $colore;'>$fascia (Occupato)</div>";
+                                                    }
+                                                    break;
+                                                }
+                                            }
+                                            if (!$prenotata) {
+                                                echo "<div class='sezione'>$fascia (Libero)</div>";
+                                            }
                                         }
-                                    endforeach; ?>
+                                    }
+                                    
+                                    if ($ausiliario2) {
+                                        echo "<div class='sezione ausiliario' style='background-color: #8A2BE2;'>
+                                                Ausiliario Linea 2
+                                                <form method='POST' style='display:inline;'>
+                                                    <input type='hidden' name='data' value='$currentDate'>
+                                                    <input type='hidden' name='fascia_oraria' value='ausiliario_linea2'>
+                                                    <button type='submit' name='rimuovi'>Rimuovi</button>
+                                                </form>
+                                                <form method='GET' action='gestione_attività.php' style='display:inline;'>
+                                                    <input type='hidden' name='data' value='$currentDate'>
+                                                    <input type='hidden' name='fascia_oraria' value='ausiliario_linea2'>
+                                                    <button type='submit'>Gestisci attività</button>
+                                                </form>
+                                              </div>";
+                                    } else {
+                                        foreach (['mattina_linea2', 'pomeriggio_linea2'] as $fascia) {
+                                            $prenotata = false;
+                                            foreach ($prenotazioni as $prenotazione) {
+                                                if ($prenotazione['data'] == $currentDate && $prenotazione['fascia_oraria'] == $fascia) {
+                                                    $colore = $prenotazione['colore'];
+                                                    $prenotata = true;
+                                                    if ($prenotazione['agenzia_id'] == $agenzia_id) {
+                                                        echo "<div class='sezione occupato' style='background-color: $colore;'>
+                                                                $fascia
+                                                                <form method='POST' style='display:inline;'>
+                                                                    <input type='hidden' name='data' value='$currentDate'>
+                                                                    <input type='hidden' name='fascia_oraria' value='$fascia'>
+                                                                    <button type='submit' name='rimuovi'>Rimuovi</button>
+                                                                </form>
+                                                                <form method='GET' action='gestione_attività.php' style='display:inline;'>
+                                                                    <input type='hidden' name='data' value='$currentDate'>
+                                                                    <input type='hidden' name='fascia_oraria' value='$fascia'>
+                                                                    <button type='submit'>Gestisci attività</button>
+                                                                </form>
+                                                              </div>";
+                                                    } else {
+                                                        echo "<div class='sezione occupato' style='background-color: $colore;'>$fascia (Occupato)</div>";
+                                                    }
+                                                    break;
+                                                }
+                                            }
+                                            if (!$prenotata) {
+                                                echo "<div class='sezione'>$fascia (Libero)</div>";
+                                            }
+                                        }
+                                    }
+                                    ?>
                                 </div>
                             <?php endif; ?>
                         </td>
@@ -312,25 +453,30 @@ $totalWeeks = ceil(($daysInMonth + ($startDayOfWeek - 1)) / 7); // Calcolo delle
             <?php endfor; ?>
         </tbody>
     </table>
-
-    <!-- Form per occupare una sezione -->
     <!-- Sezione della legenda -->
-<div class="legenda" style="text-align: center; margin-top: 20px;">
-    <h4>Legenda:</h4>
-    <div style="display: inline-block; margin: 0 10px;">
-        <div style="width: 20px; height: 20px; background-color: #ff0000; display: inline-block; border: 0.4px solid #000;"></div>
-        <span>Agenzia 1</span>
-    </div>
-    <div style="display: inline-block; margin: 0 10px;">
-        <div style="width: 20px; height: 20px; background-color: #8cff00; display: inline-block; border: 0.4px solid #000;"></div>
-        <span>Agenzia 2</span>
-    </div>
-    <div style="display: inline-block; margin: 0 10px;">
-        <div style="width: 20px; height: 20px; background-color: #006aff; display: inline-block; border: 0.4px solid #000;"></div>
-        <span>Agenzia 3</span>
-    </div>
+        <div class="legenda">
+        <h4>Legenda:</h4>
+            <div class="legenda-item">
+                <div class="legenda-color" style="background-color: #ff0000;"></div>
+                <span class="legenda-label">CP Auto</span>
+            </div>
+            <div class="legenda-item">
+                <div class="legenda-color" style="background-color: #8cff00;"></div>
+                <span class="legenda-label">La bresciana</span>
+            </div>
+            <div class="legenda-item">
+                <div class="legenda-color" style="background-color: #006aff;"></div>
+                <span class="legenda-label">Praticauto</span>
+            </div>
+            <div class="legenda-item">
+                <div class="legenda-color" style="background-color: #8A2BE2;"></div>
+                <span class="legenda-label">Ausiliario</span>
+            </div>
+        </div>
+        <div id="logout-button">
+                 <a href="logout.php" class="logout-link">Logout</a>
+        </div>
+        </div>
     
-</div>
-
 </body>
 </html>
