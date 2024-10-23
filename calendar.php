@@ -124,8 +124,7 @@ $totalWeeks = ceil(($daysInMonth + ($startDayOfWeek - 1)) / 7); // Calcolo delle
     }
     
     table {
-        width: 98%;
-        
+        width: 80%;
         margin: 20px auto;
         border-collapse: separate;
         border-spacing: 0;
@@ -345,8 +344,76 @@ $totalWeeks = ceil(($daysInMonth + ($startDayOfWeek - 1)) / 7); // Calcolo delle
         box-shadow: 0 6px 20px rgba(231,76,60,0.4);
     }
     
+  @media (max-width: 768px) {
+    /* ... (regole esistenti rimangono) ... */
     
+    /* Centraggio form occupazione */
+    .occupazione {
+        width: 90%;
+        margin: 20px auto;
+        text-align: center;
+    }
     
+    .occupazione form {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .occupazione label {
+        margin: 5px 0;
+    }
+    
+    .occupazione input,
+    .occupazione select,
+    .occupazione button {
+        width: 80%;
+        max-width: 300px;
+        margin: 5px 0;
+    }
+    
+    /* Centraggio legenda */
+    .legenda {
+        width: 90%;
+        margin: 20px auto;
+        text-align: center;
+        padding: 15px 10px;
+    }
+    
+    .legenda-item {
+        display: inline-flex;
+        justify-content: center;
+        width: calc(50% - 10px);
+        margin: 5px;
+        box-sizing: border-box;
+    }
+}
+
+/* Aggiornamento media query per schermi molto piccoli (max-width: 480px) */
+@media (max-width: 480px) {
+    .occupazione input,
+    .occupazione select,
+    .occupazione button {
+        width: 90%;
+    }
+    
+    .legenda-item {
+        width: calc(100% - 10px);
+        justify-content: center;
+    }
+    
+    /* Migliora la navigazione del mese su schermi piccoli */
+    .nav-mese {
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .nav-mese button {
+        width: 200px;
+    }
+}
     </style>
 </head>
 <body>
