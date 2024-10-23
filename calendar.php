@@ -27,7 +27,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $fascia_oraria = $_POST['fascia_oraria'];
 
         // Verifica se la sezione è già occupata
-        $query = $conn->prepare("SELECT * FROM prenotazioni WHERE data = ? AND fascia_oraria = ?");
+        $q1 = "SELECT * FROM prenotazioni WHERE data = ? AND fascia_oraria = ?";
+        if ($fascia_oraria == "mattina_linea1" || $fascia_oraria == "pomeriggio_linea1") {
+            $q1 = "SELECT * FROM prenotazioni WHERE data = ? AND (fascia_oraria = ? OR fascia_oraria = 'ausiliario_linea1')";
+        }
+        if ($fascia_oraria == "mattina_linea2" || $fascia_oraria == "pomeriggio_linea2") {
+            $q1 = "SELECT * FROM prenotazioni WHERE data = ? AND (fascia_oraria = ? OR fascia_oraria = 'ausiliario_linea2')";
+        }
+        
+        $query = $conn->prepare($q1);
         $query->bind_param('ss', $data, $fascia_oraria);
         $query->execute();
         $result = $query->get_result();
@@ -85,190 +93,260 @@ $totalWeeks = ceil(($daysInMonth + ($startDayOfWeek - 1)) / 7); // Calcolo delle
 <html lang="it">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Calendario Agenzie</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <style>
     body {
-        font-family: 'Oswald', serif;
-        font-weight: normal;
-        background-color: #f4f4f4;
+        font-family: 'Roboto', sans-serif;
+        background: linear-gradient(135deg, #f5f7fa 0%, #e4e7e7 100%);
         margin: 0;
-        padding: 0;
+        padding: 20px;
+        min-height: 100vh;
     }
+    
     h2 {
-        font-family: 'Oswald', serif;
+        font-size: 2.2rem;
         text-align: center;
-        color: #333;
-        margin: 0;
+        color: #2c3e50;
+        margin: 20px 0;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
     }
+    
     h3 {
-        font-family: 'Oswald', serif;
+        font-size: 1.8rem;
         text-align: center;
-        color: #555;
-        margin-left: 0px;
+        color: #34495e;
+        margin: 15px 0;
+        font-weight: 500;
     }
+    
     table {
-        width: 100%;
-        border-collapse: collapse;
-        margin: 2px 0;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        background-color: #e4e7e7;
+        width: 98%;
         
+        margin: 20px auto;
+        border-collapse: separate;
+        border-spacing: 0;
+        background: white;
+        border-radius: 15px;
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
     }
+    
     th, td {
-        border: 2px solid #4CAF50;
-        border-color:#8895a8;
-        padding: 5px;
+        border: 1px solid #e0e0e0;
+        padding: 12px;
         text-align: center;
         vertical-align: top;
+        transition: all 0.3s ease;
     }
-    th {
-        background-color: #4CAF50;
-        color: white;
-    }
-    h4 {
-        font-family: 'Oswald', serif;
-        margin: 0;
-        font-size: 0.9em;
-        color: #333;
-    }
+    
+    /* Preserving the dynamic agency color */
     th {
         background-color: <?php echo $colore_agenzia; ?>;
         color: white;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-size: 0.9rem;
+        padding: 15px;
     }
+    
+    td:hover {
+        background-color: rgba(245,247,250,0.5);
+        transform: scale(1.02);
+        z-index: 1;
+    }
+    
     .griglia-2x2 {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
-        grid-gap: 5px;
+        grid-gap: 8px;
+        padding: 5px;
     }
     
     .sezione {
-        padding: 6px;
-        border-radius: 8px;
-        background-color: #e7f3fe;
+        padding: 10px;
+        border-radius: 10px;
+        background-color: #f8fafc;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        font-size: 14px;
-        transition: background-color 0.3s;
+        font-size: 0.85rem;
+        transition: all 0.3s ease;
+        border: 1px solid #e2e8f0;
+        min-height: 80px;
     }
+    
     .sezione:hover {
-        background-color: #d0e4f7;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
     }
+    
     .sezione.occupato {
-        color: #fff;
-        background-color: #ff4c4c;
-        
+        color: white;
     }
-    .sezione.occupato:hover {
-        transform: scale(1.03);
-        
-    }
+    
     .sezione.ausiliario {
-        background-color: #8A2BE2;
-        color: #fff;
+        background: #8A2BE2;
+        color: white;
         grid-column: span 2;
+        font-weight: 500;
     }
-    .sezione.ausiliario:hover {
-        transform: scale(1.03);
-    } 
-    .sezione form {
-        margin: 3px 0 0;
-    }
+    
     .sezione button {
-        font-size: 12px;
-        padding: 4px 8px;
+        margin-top: 8px;
+        padding: 6px 12px;
         border: none;
-        border-radius: 5px;
-        background-color: #707c80;
+        border-radius: 20px;
+        background: rgba(255,255,255,0.2);
         color: white;
         cursor: pointer;
-        transition: background-color 0.3s;
+        transition: all 0.3s ease;
+        font-size: 0.8rem;
+        backdrop-filter: blur(5px);
+    }
     
-    }
     .sezione button:hover {
-        background-color: #8B8C8D;
+        background: rgba(255,255,255,0.3);
+        transform: scale(1.05);
     }
-    .nav-mese, .occupazione {
-        text-align: center; 
-        margin-bottom: 3px;
-    }
-    .nav-mese form,
-    .occupazione form {
-        display: inline;
-        margin: 0 20px;
-    }
-    .occupazione {
+    
+    .nav-mese {
         display: flex;
         justify-content: center;
-        align-items: center;
-        margin: 3px 0;
+        gap: 20px;
+        margin: 20px 0;
     }
+    
+    .nav-mese button {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 25px;
+        background-color: <?php echo $colore_agenzia; ?>;
+        color: white;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-weight: 500;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+    
+    .nav-mese button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+    }
+    
+    .occupazione {
+        background: white;
+        padding: 20px;
+        border-radius: 15px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+        margin: 20px auto;
+        max-width: 800px;
+    }
+    
+    .occupazione h4 {
+        color: #2c3e50;
+        margin-bottom: 15px;
+        font-size: 1.2rem;
+    }
+    
     .occupazione input, .occupazione select {
-        margin: 0 4px;
-        padding: 4px;
-        border-radius: 5px;
-        border: 1px solid #ccc;
+        padding: 8px 15px;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        margin: 0 10px;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
     }
+    
+    .occupazione input:focus, .occupazione select:focus {
+        border-color: <?php echo $colore_agenzia; ?>;
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(0,0,0,0.1);
+    }
+    
+    .occupazione button {
+        padding: 8px 20px;
+        background-color: <?php echo $colore_agenzia; ?>;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-weight: 500;
+    }
+    
+    .occupazione button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+    
     .legenda {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    flex-wrap: wrap;
-   
-}
-
-    .legenda h4 {
-    margin-right: 15px;
-    margin-bottom: 0;
+        background: white;
+        padding: 20px;
+        border-radius: 15px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+        margin: 20px auto;
+        max-width: 800px;
     }
-
+    
     .legenda-item {
-    display: flex;
-    align-items: center;
-    margin-right: 15px;
-    margin-bottom: 5px;
+        padding: 8px 15px;
+        margin: 5px;
+        border-radius: 20px;
+        display: inline-flex;
+        align-items: center;
+        background: #f8fafc;
+        transition: all 0.3s ease;
     }
-
+    
+    .legenda-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    
     .legenda-color {
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
-        margin-right: 8px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        width: 24px;
+        height: 24px;
+        border-radius: 12px;
+        margin-right: 10px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
-
+    
     .legenda-label {
-        font-size: 0.9em;
-        color: #555;
-        font-family: 'Oswald', serif;
-        font-size: 20px;
+        font-size: 0.95rem;
+        color: #2c3e50;
+        font-weight: 500;
     }
+    
     #logout-button {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 1000;
+        position: fixed;
+        top: 20px;
+        right: 20px;
     }
-
+    
     .logout-link {
-    padding: 10px 20px;
-    background: linear-gradient(to right, #C33764, #1D2671);
-    color: white;
-    text-decoration: none;
-    border-radius: 5px;
-    font-weight: bold;
-    transition: background-color 0.3s;
+        padding: 12px 25px;
+        background: linear-gradient(45deg, #e74c3c, #c0392b);
+        color: white;
+        text-decoration: none;
+        border-radius: 25px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(231,76,60,0.3);
     }
-
+    
     .logout-link:hover {
-    background-color: #f44336;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(231,76,60,0.4);
     }
     
     
     
-}
     </style>
 </head>
 <body>
@@ -311,6 +389,7 @@ $totalWeeks = ceil(($daysInMonth + ($startDayOfWeek - 1)) / 7); // Calcolo delle
             <button type="submit">Mese Successivo >></button>
         </form>
     </div>
+    <div style="width: 1920 px">
     <table>
         <thead>
             <tr>
@@ -334,9 +413,9 @@ $totalWeeks = ceil(($daysInMonth + ($startDayOfWeek - 1)) / 7); // Calcolo delle
                                 $currentDate = "$year-$month-".str_pad($day, 2, "0", STR_PAD_LEFT); 
                             ?>
                                 <h4><?php echo $day; ?></h4>
-                                <div class="griglia-2x2">
+                                <div style="display: flex; flex-direction: row; gap: 5px">
                                     <?php
-                                    $fasce = ['mattina_linea1', 'mattina_linea2', 'pomeriggio_linea1', 'pomeriggio_linea2'];
+                                    $fasce = ['mattina_linea1','pomeriggio_linea1', 'mattina_linea2', 'pomeriggio_linea2'];
                                     $ausiliario1 = false;
                                     $ausiliario2 = false;
                                     foreach ($prenotazioni as $prenotazione) {
@@ -350,7 +429,7 @@ $totalWeeks = ceil(($daysInMonth + ($startDayOfWeek - 1)) / 7); // Calcolo delle
                                     }
                                     
                                     if ($ausiliario1) {
-                                        echo "<div class='sezione ausiliario' style='background-color: #8A2BE2;'>
+                                        echo "<div class='sezione ausiliario' style='background-color: #8A2BE2'>
                                                 Ausiliario Linea 1
                                                 <form method='POST' style='display:inline;'>
                                                     <input type='hidden' name='data' value='$currentDate'>
@@ -364,13 +443,14 @@ $totalWeeks = ceil(($daysInMonth + ($startDayOfWeek - 1)) / 7); // Calcolo delle
                                                 </form>
                                               </div>";
                                     } else {
+                                        echo "<div style='display: flex; flex-direction: column; gap: 5px'>";
                                         foreach (['mattina_linea1', 'pomeriggio_linea1'] as $fascia) {
                                             $prenotata = false;
                                             foreach ($prenotazioni as $prenotazione) {
                                                 if ($prenotazione['data'] == $currentDate && $prenotazione['fascia_oraria'] == $fascia) {
                                                     $colore = $prenotazione['colore'];
                                                     $prenotata = true;
-                                                    if ($prenotazione['agenzia_id'] == $agenzia_id) {
+                                                    if ($prenotazione['agenzia_id'] == $agenzia_id || $prenotazione['agenzia_id'] == 4) {
                                                         echo "<div class='sezione occupato' style='background-color: $colore;'>
                                                                 $fascia
                                                                 <form method='POST' style='display:inline;'>
@@ -394,6 +474,7 @@ $totalWeeks = ceil(($daysInMonth + ($startDayOfWeek - 1)) / 7); // Calcolo delle
                                                 echo "<div class='sezione'>$fascia (Libero)</div>";
                                             }
                                         }
+                                        echo "</div>";
                                     }
                                     
                                     if ($ausiliario2) {
@@ -411,6 +492,8 @@ $totalWeeks = ceil(($daysInMonth + ($startDayOfWeek - 1)) / 7); // Calcolo delle
                                                 </form>
                                               </div>";
                                     } else {
+                                        echo "<div style='display: flex; flex-direction: column; gap: 5px'>";
+
                                         foreach (['mattina_linea2', 'pomeriggio_linea2'] as $fascia) {
                                             $prenotata = false;
                                             foreach ($prenotazioni as $prenotazione) {
@@ -418,7 +501,7 @@ $totalWeeks = ceil(($daysInMonth + ($startDayOfWeek - 1)) / 7); // Calcolo delle
                                                     $colore = $prenotazione['colore'];
                                                     $prenotata = true;
                                                     if ($prenotazione['agenzia_id'] == $agenzia_id) {
-                                                        echo "<div class='sezione occupato' style='background-color: $colore;'>
+                                                        echo "<div class='sezione occupato' style='background-color: $colore'>
                                                                 $fascia
                                                                 <form method='POST' style='display:inline;'>
                                                                     <input type='hidden' name='data' value='$currentDate'>
@@ -441,6 +524,7 @@ $totalWeeks = ceil(($daysInMonth + ($startDayOfWeek - 1)) / 7); // Calcolo delle
                                                 echo "<div class='sezione'>$fascia (Libero)</div>";
                                             }
                                         }
+                                        echo "</div>";
                                     }
                                     ?>
                                 </div>
@@ -453,6 +537,7 @@ $totalWeeks = ceil(($daysInMonth + ($startDayOfWeek - 1)) / 7); // Calcolo delle
             <?php endfor; ?>
         </tbody>
     </table>
+    </div>
     <!-- Sezione della legenda -->
         <div class="legenda">
         <h4>Legenda:</h4>
@@ -472,11 +557,18 @@ $totalWeeks = ceil(($daysInMonth + ($startDayOfWeek - 1)) / 7); // Calcolo delle
                 <div class="legenda-color" style="background-color: #8A2BE2;"></div>
                 <span class="legenda-label">Ausiliario</span>
             </div>
+            <div class="legenda-item">
+                <div class="legenda-color" style="background-color: #FF8000;"></div>
+                <span class="legenda-label">Tvr</span>
+            </div>
         </div>
         <div id="logout-button">
                  <a href="logout.php" class="logout-link">Logout</a>
         </div>
         </div>
+    
+</body>
+</html>
     
 </body>
 </html>
