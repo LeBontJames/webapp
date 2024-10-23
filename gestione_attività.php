@@ -43,7 +43,8 @@ $prenotazione = $result->fetch_assoc();
 $prenotazione_id = $prenotazione['id'];
 
 // Controlla se è una fascia ausiliaria o se appartiene all'agenzia corrente
-if (strpos($fascia_oraria, 'ausiliario') === false && $prenotazione['agenzia_id'] != $agenzia_id) {
+if (strpos($fascia_oraria, 'ausiliario') === false && $prenotazione['agenzia_id'] != $agenzia_id && 
+    $prenotazione['agenzia_id'] != 4 ) {
     die("Non autorizzato ad accedere a questa prenotazione");
 }
 
@@ -206,8 +207,18 @@ if (isset($_GET['ajax'])) {
     <h1>Gestione Attività per <?php echo htmlspecialchars($data); ?> - <?php echo htmlspecialchars($fascia_oraria); ?></h1>
     
     <div id="message-container"></div>
-
-    <div id="tempo-rimanente">Tempo rimanente: <?php echo $tempo_rimanente; ?> minuti</div>
+    
+    <div style="display: flex; flex-direction: row; gap: 20px">
+        <div id="tempo-rimanente"  style="width: 100%;">Tempo rimanente: <?php echo $tempo_rimanente; ?> minuti</div>
+        <div style="width: 100%;">
+            <h1>Inserisci un Tempo in Minuti</h1>
+            <form action="/submit" method="post">
+                <label for="minuti">Minuti:</label>
+                <input type="number" id="minuti" name="minuti" min="0" required>
+                <input type="submit" value="Invia">
+            </form>
+        </div>
+    </div>
     
     <h2>Attività Esistenti</h2>
     <div id="attivita-container">
