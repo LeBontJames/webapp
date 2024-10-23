@@ -28,7 +28,56 @@ $tempi_massimi = [
 ];
 
 $tempo_massimo = $tempi_massimi[$fascia_oraria];
+// Gestione dell'aggiunta del tempo extra
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['aggiungi_tempo'])) {
+    $minuti_extra = intval($_POST['minuti']);
+    
+    // Aggiorna il tempo massimo nella sessione
+    if (!isset($_SESSION['tempi_extra'][$data][$fascia_oraria])) {
+        $_SESSION['tempi_extra'][$data][$fascia_oraria] = 0;
+    }
+    $_SESSION['tempi_extra'][$data][$fascia_oraria] += $minuti_extra;
+    
+    // Aggiorna anche nel database per persistenza
+    $query = $conn->prepare("UPDATE prenotazioni SET tempo_extra = tempo_extra + ? WHERE data = ? AND fascia_oraria = ?");
+    $query->bind_param('iss', $minuti_extra, $data, $fascia_oraria);
+    $query->execute();
+    
+    if ($query->affected_rows > 0) {
+        $message = "Tempo extra aggiunto con successo.";
+    } else {
+        $message = "Errore nell'aggiunta del tempo extra.";
+    }
+}
 
+// Recupera il tempo extra dal database
+$query = $conn->prepare("SELECT tempo_extra FROM prenotazioni WHERE data = ? AND fascia_oraria = ?");
+$query->bind_param('ss', $data, $fascia_oraria);
+$query->execute();
+$result = $query->get_result();
+$tempo_extra = $result->fetch_assoc()['tempo_extra'] ?? 0;
+
+// Aggiorna il tempo massimo considerando il tempo extra
+$tempo_massimo += $tempo_extra;
+
+// Gestione del reset del tempo extra
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['reset_tempo'])) {
+    // Reset del tempo extra nella sessione
+    if (isset($_SESSION['tempi_extra'][$data][$fascia_oraria])) {
+        $_SESSION['tempi_extra'][$data][$fascia_oraria] = 0;
+    }
+    
+    // Reset del tempo extra nel database
+    $query = $conn->prepare("UPDATE prenotazioni SET tempo_extra = 0 WHERE data = ? AND fascia_oraria = ?");
+    $query->bind_param('ss', $data, $fascia_oraria);
+    $query->execute();
+    
+    if ($query->affected_rows > 0) {
+        $message = "Tempo massimo ripristinato con successo.";
+    } else {
+        $message = "Errore nel ripristino del tempo massimo.";
+    }
+}
 // Verifica se la prenotazione esiste e appartiene all'agenzia corrente o se è una fascia ausiliaria
 $query = $conn->prepare("SELECT id, agenzia_id FROM prenotazioni WHERE data = ? AND fascia_oraria = ?");
 $query->bind_param('ss', $data, $fascia_oraria);
@@ -50,7 +99,7 @@ if (strpos($fascia_oraria, 'ausiliario') === false && $prenotazione['agenzia_id'
 
 // Funzione per calcolare il tempo totale delle attività
 function calcolaTempotato($conn, $prenotazione_id) {
-    $query = $conn->prepare("SELECT SUM(tempo_mail) as tempo_totale FROM attivita WHERE prenotazione_id = ?");
+    $query = $conn->prepare("SELECT SUM(tempo) as tempo_totale FROM attivita WHERE prenotazione_id = ?");
     $query->bind_param('i', $prenotazione_id);
     $query->execute();
     $result = $query->get_result()->fetch_assoc();
@@ -62,13 +111,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['aggiungi_attivita'])) 
     $targa = $_POST['targa'];
     $cliente = $_POST['cliente'];
     $cod_fattura = $_POST['cod_fattura'];
-    $tempo_mail = $_POST['tempo_mail'];
+    $tempo = $_POST['tempo'];
     
-    $tempo_totale = calcolaTempotato($conn, $prenotazione_id) + $tempo_mail;
+    $tempo_totale = calcolaTempotato($conn, $prenotazione_id) + $tempo;
     
     if ($tempo_totale <= $tempo_massimo) {
-        $query = $conn->prepare("INSERT INTO attivita (prenotazione_id, targa, cliente, cod_fattura, tempo_mail) VALUES (?, ?, ?, ?, ?)");
-        $query->bind_param('isssi', $prenotazione_id, $targa, $cliente, $cod_fattura, $tempo_mail);
+        $query = $conn->prepare("INSERT INTO attivita (prenotazione_id, targa, cliente, cod_fattura, tempo) VALUES (?, ?, ?, ?, ?)");
+        $query->bind_param('isssi', $prenotazione_id, $targa, $cliente, $cod_fattura, $tempo);
         if ($query->execute()) {
             $message = "Attività aggiunta con successo.";
         } else {
@@ -92,7 +141,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['rimuovi_attivita'])) {
 }
 
 // Recupero delle attività esistenti
-$query = $conn->prepare("SELECT id, targa, cliente, cod_fattura, tempo_mail FROM attivita WHERE prenotazione_id = ?");
+$query = $conn->prepare("SELECT id, targa, cliente, cod_fattura, tempo FROM attivita WHERE prenotazione_id = ?");
 $query->bind_param('i', $prenotazione_id);
 $query->execute();
 $attivita = $query->get_result()->fetch_all(MYSQLI_ASSOC);
@@ -119,87 +168,167 @@ if (isset($_GET['ajax'])) {
     <title>Gestione Attività</title>
     <style>
         body {
-            font-family: 'Verdana', sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             line-height: 1.6;
             margin: 0;
             padding: 20px;
-            background-color: #e2e2e2;
+            background-color: #f8f9fa;
+            color: #212529;
         }
-        h1, h2 {
-            color: #2e2e2e;
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
         }
-        form {
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
             background: #fff;
-            padding: 25px;
-            margin-bottom: 20px;
             border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        input[type="text"], input[type="number"] {
+
+        .header h1 {
+            color: #31456A;
+            font-size: 24px;
+            margin: 0;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #31456A;
+            font-weight: 500;
+        }
+
+        .form-control {
             width: 100%;
-            padding: 10px;
-            margin-bottom: 12px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
+            padding: 8px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 14px;
         }
-        input[type="submit"] {
-            background: #007BFF;
-            color: #fff;
-            padding: 12px 20px;
-            border: none;
-            border-radius: 5px;
+
+        .btn {
+            display: inline-block;
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            text-align: center;
+            text-decoration: none;
+            border-radius: 4px;
             cursor: pointer;
-            transition: background 0.3s ease;
+            border: none;
+            transition: background-color 0.2s;
         }
-        input[type="submit"]:hover {
-            background: #0056b3;
+
+        .btn-primary {
+            background-color: #dc2626;
+            color: #fff;
         }
+
+        .btn-primary:hover {
+            background-color: #b91c1c;
+        }
+
+        .btn-danger {
+            background-color: #dc3545;
+            color: #fff;
+        }
+
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+
         table {
             width: 100%;
             border-collapse: collapse;
-            background: #fff;
             margin-top: 20px;
+            background: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
+
         th, td {
-            padding: 12px;
-            border: 1px solid #ddd;
+            padding: 12px 15px;
             text-align: left;
+            border-bottom: 1px solid #e9ecef;
         }
+
         th {
-            background-color: #f1f1f1;
-        }
-        .remove-btn {
-            background: #dc3545;
+            background-color: #31456A;
             color: #fff;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background 0.3s ease;
+            font-weight: 500;
         }
-        .remove-btn:hover {
-            background: #c82333;
-        }
-        .message {
-            background: #28a745;
-            color: white;
-            padding: 15px;
-            margin-bottom: 15px;
-            border-radius: 5px;
-        }
-        #tempo-rimanente {
-            font-size: 20px;
-            font-weight: bold;
+
+        .tempo-info {
+            font-size: 18px;
+            color: #31456A;
+            font-weight: 500;
             margin: 20px 0;
-            color: #007BFF;
         }
-        a {
-            color: #007BFF;
+
+        .nav-link {
+            display: inline-block;
+            color: #dc2626;
             text-decoration: none;
-            transition: color 0.3s ease;
+            margin-top: 20px;
+            font-weight: 500;
         }
-        a:hover {
-            color: #0056b3;
+
+        .nav-link:hover {
+            text-decoration: underline;
+        }
+
+        .message {
+            padding: 12px 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            color: #fff;
+        }
+
+        .message.success {
+            background-color: #28a745;
+        }
+
+        .message.error {
+            background-color: #dc3545;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .btn-reset {
+            background-color: #6c757d;
+            color: #fff;
+        }
+        
+        .btn-reset:hover {
+            background-color: #5a6268;
         }
     </style>
 </head>
@@ -209,16 +338,27 @@ if (isset($_GET['ajax'])) {
     <div id="message-container"></div>
     
     <div style="display: flex; flex-direction: row; gap: 20px">
-        <div id="tempo-rimanente"  style="width: 100%;">Tempo rimanente: <?php echo $tempo_rimanente; ?> minuti</div>
+        <div id="tempo-rimanente" style="width: 100%;">
+            Tempo rimanente: <?php echo $tempo_rimanente; ?> minuti
+            <?php if ($tempo_extra > 0): ?>
+                <br>
+                <small>(Inclusi <?php echo $tempo_extra; ?> minuti extra)</small>
+            <?php endif; ?>
+        </div>
         <div style="width: 100%;">
-            <h1>Inserisci un Tempo in Minuti</h1>
-            <form action="/submit" method="post">
-                <label for="minuti">Minuti:</label>
-                <input type="number" id="minuti" name="minuti" min="0" required>
-                <input type="submit" value="Invia">
+            <h2>Gestione Tempo</h2>
+            <form id="tempo-extra-form" method="post">
+                <label for="minuti">Minuti extra:</label>
+                <input type="number" id="minuti" name="minuti" min="1" required>
+                <div class="button-group">
+                    <input type="hidden" name="aggiungi_tempo" value="1">
+                    <input type="submit" value="Aggiungi Tempo" class="btn btn-primary">
+                    <button type="button" id="reset-tempo" class="btn btn-reset">Ripristina Tempo Originale</button>
+                </div>
             </form>
         </div>
     </div>
+
     
     <h2>Attività Esistenti</h2>
     <div id="attivita-container">
@@ -243,7 +383,7 @@ if (isset($_GET['ajax'])) {
                                 <td>${a.targa}</td>
                                 <td>${a.cliente}</td>
                                 <td>${a.cod_fattura}</td>
-                                <td>${a.tempo_mail}</td>
+                                <td>${a.tempo}</td>
                                 <td>
                                     <form class="rimuovi-form">
                                         <input type="hidden" name="attivita_id" value="${a.id}">
@@ -292,6 +432,31 @@ if (isset($_GET['ajax'])) {
                     }
                 });
             });
+            
+            $('#tempo-extra-form').on('submit', function(e) {
+                e.preventDefault();
+                $.ajax({
+                    url: window.location.href,
+                    method: 'POST',
+                    data: $(this).serialize(),
+                    success: function(response) {
+                        // Aggiorna la pagina per mostrare il nuovo tempo massimo
+                        location.reload();
+                    }
+                });
+            });
+            $('#reset-tempo').on('click', function() {
+                if (confirm('Sei sicuro di voler ripristinare il tempo massimo originale?')) {
+                    $.ajax({
+                        url: window.location.href,
+                        method: 'POST',
+                        data: { reset_tempo: 1 },
+                        success: function(response) {
+                            location.reload();
+                        }
+                    });
+                }
+            });
         });
     </script>
 
@@ -300,7 +465,7 @@ if (isset($_GET['ajax'])) {
         <input type="text" name="targa" placeholder="Targa" required>
         <input type="text" name="cliente" placeholder="Cliente" required>
         <input type="text" name="cod_fattura" placeholder="Codice Fattura" required>
-        <input type="number" name="tempo_mail" placeholder="Tempo Mail (in minuti)" required>
+        <input type="number" name="tempo" placeholder="Tempo (in minuti)" required>
         <input type="submit" value="Aggiungi">
     </form>
 
