@@ -101,8 +101,9 @@ $totalWeeks = ceil(($daysInMonth + ($startDayOfWeek - 1)) / 7); // Calcolo delle
         font-family: 'Roboto', sans-serif;
         background: linear-gradient(135deg, #f5f7fa 0%, #e4e7e7 100%);
         margin: 0;
-        padding: 20px;
         min-height: 100vh;
+        transform: scale(0.95); /* Riduce le dimensioni del body al 80% */
+        transform-origin: top left; /* Imposta il punto di origine per lo scaling */
     }
     
     h2 {
@@ -435,6 +436,8 @@ $totalWeeks = ceil(($daysInMonth + ($startDayOfWeek - 1)) / 7); // Calcolo delle
                     <option value="ausiliario_linea1">Ausiliario Linea 1</option>
                     <option value="ausiliario_linea2">Ausiliario Linea 2</option>
                 </select>
+                <input type="hidden" name="mese" value="<?php echo $month; ?>">
+                <input type="hidden" name="anno" value="<?php echo $year; ?>">
                 <button type="submit" name="occupa">Occupa Sezione</button>
             </form>
         </div>
@@ -501,6 +504,8 @@ $totalWeeks = ceil(($daysInMonth + ($startDayOfWeek - 1)) / 7); // Calcolo delle
                                                 <form method='POST' style='display:inline;'>
                                                     <input type='hidden' name='data' value='$currentDate'>
                                                     <input type='hidden' name='fascia_oraria' value='ausiliario_linea1'>
+                                                    <input type='hidden' name='mese' value='$month'>
+                                                    <input type='hidden' name='anno' value='$year'>
                                                     <button type='submit' name='rimuovi'>Rimuovi</button>
                                                 </form>
                                                 <form method='GET' action='gestione_attività.php' style='display:inline;'>
@@ -523,6 +528,8 @@ $totalWeeks = ceil(($daysInMonth + ($startDayOfWeek - 1)) / 7); // Calcolo delle
                                                                 <form method='POST' style='display:inline;'>
                                                                     <input type='hidden' name='data' value='$currentDate'>
                                                                     <input type='hidden' name='fascia_oraria' value='$fascia'>
+                                                                    <input type='hidden' name='mese' value='$month'>
+                                                                    <input type='hidden' name='anno' value='$year'>
                                                                     <button type='submit' name='rimuovi'>Rimuovi</button>
                                                                 </form>
                                                                 <form method='GET' action='gestione_attività.php' style='display:inline;'>
@@ -550,6 +557,8 @@ $totalWeeks = ceil(($daysInMonth + ($startDayOfWeek - 1)) / 7); // Calcolo delle
                                                 <form method='POST' style='display:inline;'>
                                                     <input type='hidden' name='data' value='$currentDate'>
                                                     <input type='hidden' name='fascia_oraria' value='ausiliario_linea2'>
+                                                    <input type='hidden' name='mese' value='$month'>
+                                                    <input type='hidden' name='anno' value='$year'>
                                                     <button type='submit' name='rimuovi'>Rimuovi</button>
                                                 </form>
                                                 <form method='GET' action='gestione_attività.php' style='display:inline;'>
@@ -573,6 +582,8 @@ $totalWeeks = ceil(($daysInMonth + ($startDayOfWeek - 1)) / 7); // Calcolo delle
                                                                 <form method='POST' style='display:inline;'>
                                                                     <input type='hidden' name='data' value='$currentDate'>
                                                                     <input type='hidden' name='fascia_oraria' value='$fascia'>
+                                                                    <input type='hidden' name='mese' value='$month'>
+                                                                    <input type='hidden' name='anno' value='$year'>
                                                                     <button type='submit' name='rimuovi'>Rimuovi</button>
                                                                 </form>
                                                                 <form method='GET' action='gestione_attività.php' style='display:inline;'>
