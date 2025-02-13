@@ -346,11 +346,27 @@ $totalWeeks = ceil(($daysInMonth + ($startDayOfWeek - 1)) / 7); // Calcolo delle
     }
     
   @media (max-width: 768px) {
-    /* ... (regole esistenti rimangono) ... */
+       
+    body {
+        transform: none; /* Remove the scale transform on mobile */
+        margin: 0;
+        padding: 0;
+        width: 1920px;
+    }
+    #logout-button {
+        
+        top: 5px;
+        right: 5px;
+    }
+    
+    .logout-link {
+        padding: 6px 15px;
+        font-size: 12px;
+    }
     
     /* Centraggio form occupazione */
     .occupazione {
-        width: 90%;
+        width: 1920px;
         margin: 20px auto;
         text-align: center;
     }
@@ -376,7 +392,7 @@ $totalWeeks = ceil(($daysInMonth + ($startDayOfWeek - 1)) / 7); // Calcolo delle
     
     /* Centraggio legenda */
     .legenda {
-        width: 90%;
+        width: 1920px;
         margin: 20px auto;
         text-align: center;
         padding: 15px 10px;
@@ -390,6 +406,17 @@ $totalWeeks = ceil(($daysInMonth + ($startDayOfWeek - 1)) / 7); // Calcolo delle
         box-sizing: border-box;
     }
 }
+     .nav-mese {
+        flex-direction: row;
+        justify-content: center;
+        gap: 10px;
+        padding: 0 10px;
+    }
+    
+    .nav-mese button {
+        padding: 8px 15px;
+        font-size: 14px;
+        white-space: nowrap;
 
 /* Aggiornamento media query per schermi molto piccoli (max-width: 480px) */
 @media (max-width: 480px) {
