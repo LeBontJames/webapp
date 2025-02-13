@@ -112,12 +112,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['aggiungi_attivita'])) 
     $cliente = $_POST['cliente'];
     $cod_fattura = $_POST['cod_fattura'];
     $tempo = $_POST['tempo'];
+    $prenotato = $_POST['prenotato'];
+    $inviato = $_POST['inviato'];
     
     $tempo_totale = calcolaTempotato($conn, $prenotazione_id) + $tempo;
     
     if ($tempo_totale <= $tempo_massimo) {
-        $query = $conn->prepare("INSERT INTO attivita (prenotazione_id, targa, cliente, cod_fattura, tempo) VALUES (?, ?, ?, ?, ?)");
-        $query->bind_param('isssi', $prenotazione_id, $targa, $cliente, $cod_fattura, $tempo);
+        $query = $conn->prepare("INSERT INTO attivita (prenotazione_id, targa, cliente, cod_fattura, tempo, prenotato, inviato) VALUES (?, ?, ?, ?, ?, ?, ?)");
+        $query->bind_param('isssiss', $prenotazione_id, $targa, $cliente, $cod_fattura, $tempo, $prenotato, $inviato);
         if ($query->execute()) {
             $message = "Attività aggiunta con successo.";
         } else {
@@ -141,7 +143,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['rimuovi_attivita'])) {
 }
 
 // Recupero delle attività esistenti
-$query = $conn->prepare("SELECT id, targa, cliente, cod_fattura, tempo FROM attivita WHERE prenotazione_id = ?");
+$query = $conn->prepare("SELECT id, targa, cliente, cod_fattura, tempo, prenotato, inviato FROM attivita WHERE prenotazione_id = ?");
 $query->bind_param('i', $prenotazione_id);
 $query->execute();
 $attivita = $query->get_result()->fetch_all(MYSQLI_ASSOC);
@@ -330,6 +332,22 @@ if (isset($_GET['ajax'])) {
         .btn-reset:hover {
             background-color: #5a6268;
         }
+        .back-button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #586670;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 4px;
+            margin-top: 20px;
+            transition: background-color 0.2s;
+            font-weight: 500;
+        }
+        
+        .back-button:hover {
+            background-color: #253448;
+            text-decoration: none;
+        }
     </style>
 </head>
 <body>
@@ -365,45 +383,47 @@ if (isset($_GET['ajax'])) {
         <!-- La tabella delle attività sarà inserita qui dinamicamente -->
     </div>
 
-    <p><a href="calendar.php">Torna al Calendario</a></p>
+    <p><a href="calendar.php" class="back-button">Torna al Calendario</a></p>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
         function aggiornaAttivita() {
-            $.ajax({
-                url: 'gestione_attività.php?data=<?php echo urlencode($data); ?>&fascia_oraria=<?php echo urlencode($fascia_oraria); ?>&ajax=1',
-                method: 'GET',
-                dataType: 'json',
-                success: function(data) {
-                    let tableHtml = '<table><thead><tr><th>Targa</th><th>Cliente</th><th>Codice Fattura</th><th>Tempo Mail (minuti)</th><th>Azioni</th></tr></thead><tbody>';
-                    
-                    data.attivita.forEach(function(a) {
-                        tableHtml += `
-                            <tr>
-                                <td>${a.targa}</td>
-                                <td>${a.cliente}</td>
-                                <td>${a.cod_fattura}</td>
-                                <td>${a.tempo}</td>
-                                <td>
-                                    <form class="rimuovi-form">
-                                        <input type="hidden" name="attivita_id" value="${a.id}">
-                                        <input type="submit" value="Rimuovi" class="remove-btn">
-                                    </form>
-                                </td>
-                            </tr>
-                        `;
-                    });
-                    
-                    tableHtml += '</tbody></table>';
-                    $('#attivita-container').html(tableHtml);
-                    $('#tempo-rimanente').text('Tempo rimanente: ' + data.tempo_rimanente + ' minuti');
-                    
-                    if (data.message) {
-                        $('#message-container').html('<div class="message">' + data.message + '</div>');
-                    }
-                }
+    $.ajax({
+        url: 'gestione_attività.php?data=<?php echo urlencode($data); ?>&fascia_oraria=<?php echo urlencode($fascia_oraria); ?>&ajax=1',
+        method: 'GET',
+        dataType: 'json',
+        success: function(data) {
+            let tableHtml = '<table><thead><tr><th>Targa</th><th>Cliente</th><th>Codice Fattura</th><th>Tempo Mail (minuti)</th><th>Prenotato</th><th>Inviato</th><th>Azioni</th></tr></thead><tbody>';
+            
+            data.attivita.forEach(function(a) {
+                tableHtml += `
+                    <tr>
+                        <td>${a.targa}</td>
+                        <td>${a.cliente}</td>
+                        <td>${a.cod_fattura}</td>
+                        <td>${a.tempo}</td>
+                        <td>${a.prenotato}</td>
+                        <td>${a.inviato}</td>
+                        <td>
+                            <form class="rimuovi-form">
+                                <input type="hidden" name="attivita_id" value="${a.id}">
+                                <input type="submit" value="Rimuovi" class="remove-btn">
+                            </form>
+                        </td>
+                    </tr>
+                `;
             });
+            
+            tableHtml += '</tbody></table>';
+            $('#attivita-container').html(tableHtml);
+            $('#tempo-rimanente').text('Tempo rimanente: ' + data.tempo_rimanente + ' minuti');
+            
+            if (data.message) {
+                $('#message-container').html('<div class="message">' + data.message + '</div>');
+            }
         }
+    });
+}
 
         $(document).ready(function() {
             aggiornaAttivita();
@@ -461,13 +481,21 @@ if (isset($_GET['ajax'])) {
     </script>
 
     <form id="aggiungi-form">
-        <h2>Aggiungi Attività</h2>
-        <input type="text" name="targa" placeholder="Targa" required>
-        <input type="text" name="cliente" placeholder="Cliente" required>
-        <input type="text" name="cod_fattura" placeholder="Codice Fattura" required>
-        <input type="number" name="tempo" placeholder="Tempo (in minuti)" required>
-        <input type="submit" value="Aggiungi">
-    </form>
+    <h2>Aggiungi Attività</h2>
+    <input type="text" name="targa" placeholder="Targa" required>
+    <input type="text" name="cliente" placeholder="Cliente" required>
+    <input type="text" name="cod_fattura" placeholder="Codice Fattura" required>
+    <input type="number" name="tempo" placeholder="Tempo (in minuti)" required>
+    <select name="prenotato" required>
+        <option value="no">No</option>
+        <option value="si">Si</option>
+    </select>
+    <select name="inviato" required>
+        <option value="no">No</option>
+        <option value="si">Si</option>
+    </select>
+    <input type="submit" value="Aggiungi">
+</form>
 
     
 </body>
