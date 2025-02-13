@@ -14,7 +14,7 @@ $nome_agenzia = $_SESSION['nome_agenzia'];
 
 // Impostazioni per il mese e l'anno corrente o selezionato
 if (isset($_POST['mese']) && isset($_POST['anno'])) {
-    $month = $_POST['mese'];
+    $month = sprintf('%02d', $_POST['mese']); // Ensure two-digit month
     $year = $_POST['anno'];
 } else {
     $month = date('m'); // Mese corrente
@@ -68,13 +68,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 }
 
-// Ottieni tutte le prenotazioni
+// Ottieni tutte le prenotazioni per il mese selezionato
+$firstDayOfMonth = date('Y-m-01', strtotime("$year-$month-01")); // Primo giorno del mese corrente
+$lastDayOfMonth = date('Y-m-t', strtotime($firstDayOfMonth)); // Ultimo giorno del mese corrente
+
 $query = $conn->prepare("SELECT p.data, p.fascia_oraria, p.agenzia_id, a.colore 
                          FROM prenotazioni p
                          JOIN agenzie a ON p.agenzia_id = a.id
                          WHERE p.data BETWEEN ? AND ?");
-$firstDayOfMonth = date('Y-m-01', strtotime("$year-$month-01")); // Primo giorno del mese corrente
-$lastDayOfMonth = date('Y-m-t', strtotime($firstDayOfMonth)); // Ultimo giorno del mese corrente
 $query->bind_param('ss', $firstDayOfMonth, $lastDayOfMonth);
 $query->execute();
 $prenotazioni = $query->get_result()->fetch_all(MYSQLI_ASSOC);
@@ -86,7 +87,6 @@ $firstDayOfMonth = date('Y-m-01', strtotime("$year-$month-01")); // Primo giorno
 $startDayOfWeek = date('N', strtotime($firstDayOfMonth)); // Calcola da quale giorno della settimana inizia il mese corrente (Lunedì = 1)
 $daysInMonth = date('t', strtotime($firstDayOfMonth)); // Numero di giorni nel mese corrente
 $totalWeeks = ceil(($daysInMonth + ($startDayOfWeek - 1)) / 7); // Calcolo delle settimane del mese corrente
-
 ?>
 
 <!DOCTYPE html>
