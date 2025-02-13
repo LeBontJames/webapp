@@ -161,6 +161,19 @@ if (isset($_GET['ajax'])) {
     exit;
 }
 
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['modifica_attivita'])) {
+    $attivita_id = $_POST['attivita_id'];
+    $prenotato = $_POST['prenotato'];
+    $inviato = $_POST['inviato'];
+    
+    $query = $conn->prepare("UPDATE attivita SET prenotato = ?, inviato = ? WHERE id = ? AND prenotazione_id = ?");
+    $query->bind_param('ssii', $prenotato, $inviato, $attivita_id, $prenotazione_id);
+    if ($query->execute()) {
+        $message = "Attività modificata con successo.";
+    } else {
+        $message = "Errore nella modifica dell'attività.";
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -348,6 +361,73 @@ if (isset($_GET['ajax'])) {
             background-color: #253448;
             text-decoration: none;
         }
+        .modale {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modale-contenuto {
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    max-width: 500px;
+    width: 90%;
+}
+
+.button-group {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.btn-modifica {
+    background-color: #4e9719;
+    color: #000;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.btn-modifica:hover {
+    background-color: #ffb300;
+}
+
+.btn-salva {
+    background-color: #28a745;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.btn-chiudi {
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+}
     </style>
 </head>
 <body>
@@ -405,10 +485,13 @@ if (isset($_GET['ajax'])) {
                         <td>${a.prenotato}</td>
                         <td>${a.inviato}</td>
                         <td>
-                            <form class="rimuovi-form">
-                                <input type="hidden" name="attivita_id" value="${a.id}">
-                                <input type="submit" value="Rimuovi" class="remove-btn">
-                            </form>
+                            <div class="button-group">
+                                <button class="btn-modifica" onclick="apriModale(${a.id}, '${a.prenotato}', '${a.inviato}')">Modifica</button>
+                                <form class="rimuovi-form" style="display: inline;">
+                                    <input type="hidden" name="attivita_id" value="${a.id}">
+                                    <input type="submit" value="Rimuovi" class="remove-btn">
+                                </form>
+                            </div>
                         </td>
                     </tr>
                 `;
@@ -423,6 +506,58 @@ if (isset($_GET['ajax'])) {
             }
         }
     });
+}
+
+function apriModale(id, prenotato, inviato) {
+    $('#modale-modifica').remove(); // Rimuove eventuali modali esistenti
+    
+    const modaleHtml = `
+        <div id="modale-modifica" class="modale">
+            <div class="modale-contenuto">
+                <h3>Modifica Attività</h3>
+                <form id="form-modifica">
+                    <input type="hidden" name="attivita_id" value="${id}">
+                    <div class="form-group">
+                        <label>Prenotato:</label>
+                        <select name="prenotato" required>
+                            <option value="no" ${prenotato === 'no' ? 'selected' : ''}>No</option>
+                            <option value="si" ${prenotato === 'si' ? 'selected' : ''}>Si</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Inviato:</label>
+                        <select name="inviato" required>
+                            <option value="no" ${inviato === 'no' ? 'selected' : ''}>No</option>
+                            <option value="si" ${inviato === 'si' ? 'selected' : ''}>Si</option>
+                        </select>
+                    </div>
+                    <div class="button-group">
+                        <button type="submit" class="btn-salva">Salva</button>
+                        <button type="button" class="btn-chiudi" onclick="chiudiModale()">Chiudi</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
+    
+    $('body').append(modaleHtml);
+    
+    $('#form-modifica').on('submit', function(e) {
+        e.preventDefault();
+        $.ajax({
+            url: window.location.href,
+            method: 'POST',
+            data: $(this).serialize() + '&modifica_attivita=1',
+            success: function() {
+                chiudiModale();
+                aggiornaAttivita();
+            }
+        });
+    });
+}
+
+function chiudiModale() {
+    $('#modale-modifica').remove();
 }
 
         $(document).ready(function() {
