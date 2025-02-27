@@ -22,34 +22,67 @@ if (isset($_POST['mese']) && isset($_POST['anno'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    if (isset($_POST['occupa'])) {
+  if (isset($_POST['occupa'])) {
         $data = $_POST['data'];
         $fascia_oraria = $_POST['fascia_oraria'];
-
+        
         // Verifica se la sezione è già occupata
-        $q1 = "SELECT * FROM prenotazioni WHERE data = ? AND fascia_oraria = ?";
-        if ($fascia_oraria == "mattina_linea1" || $fascia_oraria == "pomeriggio_linea1") {
-            $q1 = "SELECT * FROM prenotazioni WHERE data = ? AND (fascia_oraria = ? OR fascia_oraria = 'ausiliario_linea1')";
-        }
-        if ($fascia_oraria == "mattina_linea2" || $fascia_oraria == "pomeriggio_linea2") {
-            $q1 = "SELECT * FROM prenotazioni WHERE data = ? AND (fascia_oraria = ? OR fascia_oraria = 'ausiliario_linea2')";
+        $canBook = true;
+        
+        // Se si sta tentando di prenotare un ausiliario
+        if ($fascia_oraria == 'ausiliario_linea1') {
+            // Verifica se esistono prenotazioni per mattina o pomeriggio della linea 1
+            $q1 = "SELECT * FROM prenotazioni WHERE data = ? AND (fascia_oraria = 'mattina_linea1' OR fascia_oraria = 'pomeriggio_linea1')";
+            $query = $conn->prepare($q1);
+            $query->bind_param('s', $data);
+            $query->execute();
+            $result = $query->get_result();
+            
+            if ($result->num_rows > 0) {
+                $canBook = false;
+                echo "<p style='color:red;'>Non è possibile prenotare l'ausiliario perché la linea 1 è già occupata in questa data!</p>";
+            }
+        } elseif ($fascia_oraria == 'ausiliario_linea2') {
+            // Verifica se esistono prenotazioni per mattina o pomeriggio della linea 2
+            $q1 = "SELECT * FROM prenotazioni WHERE data = ? AND (fascia_oraria = 'mattina_linea2' OR fascia_oraria = 'pomeriggio_linea2')";
+            $query = $conn->prepare($q1);
+            $query->bind_param('s', $data);
+            $query->execute();
+            $result = $query->get_result();
+            
+            if ($result->num_rows > 0) {
+                $canBook = false;
+                echo "<p style='color:red;'>Non è possibile prenotare l'ausiliario perché la linea 2 è già occupata in questa data!</p>";
+            }
+        } else {
+            // Per le altre fasce orarie, verifica se esiste già una prenotazione
+            $q1 = "SELECT * FROM prenotazioni WHERE data = ? AND fascia_oraria = ?";
+            if ($fascia_oraria == "mattina_linea1" || $fascia_oraria == "pomeriggio_linea1") {
+                $q1 = "SELECT * FROM prenotazioni WHERE data = ? AND (fascia_oraria = ? OR fascia_oraria = 'ausiliario_linea1')";
+            }
+            if ($fascia_oraria == "mattina_linea2" || $fascia_oraria == "pomeriggio_linea2") {
+                $q1 = "SELECT * FROM prenotazioni WHERE data = ? AND (fascia_oraria = ? OR fascia_oraria = 'ausiliario_linea2')";
+            }
+            
+            $query = $conn->prepare($q1);
+            $query->bind_param('ss', $data, $fascia_oraria);
+            $query->execute();
+            $result = $query->get_result();
+            
+            if ($result->num_rows > 0) {
+                $canBook = false;
+                echo "<p style='color:red;'>Questa sezione è già occupata!</p>";
+            }
         }
         
-        $query = $conn->prepare($q1);
-        $query->bind_param('ss', $data, $fascia_oraria);
-        $query->execute();
-        $result = $query->get_result();
-
-        if ($result->num_rows > 0) {
-            echo "<p style='color:red;'>Questa sezione è già occupata!</p>";
-        } else {
-            // Se non è occupata, l'agenzia può occuparla
+        // Se è possibile prenotare, procedi con l'inserimento
+        if ($canBook) {
             $query = $conn->prepare("INSERT INTO prenotazioni (agenzia_id, data, fascia_oraria) VALUES (?, ?, ?)");
             $query->bind_param('iss', $agenzia_id, $data, $fascia_oraria);
             $query->execute();
             echo "<p style='color:green;'>Sezione occupata con successo!</p>";
         }
-    } elseif (isset($_POST['rimuovi'])) {
+    }  elseif (isset($_POST['rimuovi'])) {
         $data = $_POST['data'];
         $fascia_oraria = $_POST['fascia_oraria'];
 
